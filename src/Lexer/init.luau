@@ -1,8 +1,10 @@
 --!strict
 
-local Token = require("./Lexer/Token")
+local Token = require("Lexer/Token")
 
-local function StringIndex(operand_string: string, index: number): string?
+type TokenList = { Token.Token }
+
+local function IndexString(operand_string: string, index: number): string?
 	return string.sub(operand_string, index, index)
 end
 
@@ -12,7 +14,7 @@ Lexer.__index = Lexer
 export type Lexer = typeof(setmetatable(
 	{} :: {
 		Code: string,
-		Tokens: { Token.Token },
+		Tokens: TokenList,
 
 		Position: number,
 		Line: number,
@@ -34,26 +36,27 @@ function Lexer.new(code: string): Lexer
 	return self
 end
 
-function Lexer.Advance(self: Lexer): boolean
+function Lexer._advance(self: Lexer): boolean
 	local nextIndex = self.Position + 1
 
-	-- Return code if we reached end line
+	-- Return false code if we reached end line
 	if nextIndex > #self.Code then
 		return false
 	end
 
-	if StringIndex(self.Code, nextIndex) == "\n" then
+	if IndexString(self.Code, nextIndex) == "\n" then
 		self.Line += 1
 	end
 
 	self.Column += 1
 	self.Position = nextIndex
 
+	-- Return true if we advanced successfully
 	return true
 end
 
-function Lexer.Tokenize(self: Lexer)
-	-- TODO
+function Lexer.Tokenize(self: Lexer): TokenList
+	return self.Tokens
 end
 
 return Lexer
