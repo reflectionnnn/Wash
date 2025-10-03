@@ -1,11 +1,17 @@
 --!strict
 
-local Token = require("Lexer/Token")
+local Token = require("./Lexer/Token")
 
-type TokenList = { Token.Token }
+local function IsAlpha(str: string): boolean
+	return str:match("%a") ~= nil
+end
 
-local function IndexString(operand_string: string, index: number): string?
-	return string.sub(operand_string, index, index)
+local function IsDigit(str: string): boolean
+	return str:match("%d") ~= nil
+end
+
+local function IsBlank(str: string): boolean
+	return str == "" or str == " " or str == "\t" or str == "\n"
 end
 
 local Lexer = {}
@@ -14,11 +20,11 @@ Lexer.__index = Lexer
 export type Lexer = typeof(setmetatable(
 	{} :: {
 		Code: string,
-		Tokens: TokenList,
+		Tokens: { Token.Token },
 
-		Position: number,
 		Line: number,
 		Column: number,
+		_position: number,
 	},
 	Lexer
 ))
@@ -26,36 +32,92 @@ export type Lexer = typeof(setmetatable(
 function Lexer.new(code: string): Lexer
 	local self = setmetatable({}, Lexer) :: Lexer
 
-	self.Code = JSONEncode(code) -- To detect new lines and other symbols
+	self.Code = code
 	self.Tokens = {}
 
-	self.Position = 0
 	self.Line = 0
 	self.Column = 0
+	self._position = 0
 
 	return self
 end
 
-function Lexer._advance(self: Lexer): boolean
-	local nextIndex = self.Position + 1
+function Lexer._peek(self: Lexer, position: number?): string
+	local index = position or self._position
+	return string.sub(self.Code, index, index)
+end
 
-	-- Return false code if we reached end line
-	if nextIndex > #self.Code then
+function Lexer._step(self: Lexer): boolean
+	if self:_peek(self._position + 1) == "" then
+		-- Can't step: Reached end of line
 		return false
 	end
 
-	if IndexString(self.Code, nextIndex) == "\n" then
+	self._position += 1
+	self.Column += 1
+
+	if self:_peek() == "\n" then
 		self.Line += 1
+		self.Column = 0
 	end
 
-	self.Column += 1
-	self.Position = nextIndex
-
-	-- Return true if we advanced successfully
+	-- Step was successfull
 	return true
 end
 
-function Lexer.Tokenize(self: Lexer): TokenList
+function Lexer._makeNumber(self: Lexer): number
+	local dotAmount = 0
+	local result_number = ""
+
+	while true do
+		local currentCharacter = self:_peek()
+
+		if IsDigit(currentCharacter) then
+			result_number = result_number .. currentCharacter
+
+			self:_step()
+		elseif currentCharacter == "." then
+			if dotAmount > 1 then
+				error("Expected number, got another dot")
+			end
+
+			dotAmount += 1
+			result_number = result_number .. currentCharacter
+
+			self:_step()
+		else
+			break
+		end
+	end
+
+	return tonumber(result_number) :: number
+end
+
+function Lexer.Tokenize(self: Lexer): { Token.Token }
+	-- Steps and breaks loop if reached end of line
+	while self:_step() do
+		local currentCharacter = self:_peek()
+
+		if IsBlank(currentCharacter) then
+			continue
+		elseif IsDigit(currentCharacter) then
+			table.insert(self.Tokens, Token.new(Token.Enum.NUMBER, self:_makeNumber()))
+		elseif
+			currentCharacter == "+"
+			or currentCharacter == "-"
+			or currentCharacter == "*"
+			or currentCharacter == "/"
+		then
+			table.insert(self.Tokens, Token.new(Token.Enum.BINARY_OPERATION, currentCharacter))
+		elseif currentCharacter == "(" then
+			table.insert(self.Tokens, Token.new(Token.Enum.LEFT_PAREN))
+		elseif currentCharacter == ")" then
+			table.insert(self.Tokens, Token.new(Token.Enum.RIGHT_PAREN))
+		else
+			error("Syntax error")
+		end
+	end
+
 	return self.Tokens
 end
 
