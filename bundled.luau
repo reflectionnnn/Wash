@@ -82,7 +82,7 @@ local function IsDigit(str)
 return str:match("%d") ~= nil
 end
 
-local function IsBinary(str)	
+local function IsBinaryOperator(str)	
 return str == "+" or str == "-" or str == "*" or str == "/" or str == "%" or str == "^"
 end
 
@@ -107,9 +107,9 @@ local self = (setmetatable({}, Lexer) )
 self.Code = code
 	self.Tokens = {}
 
-	self.Line = 0
-	self.Column = 0
-	self.Position = 0
+	self.Line = 1
+	self.Column = 1
+	self.Position = 1
 
 	return self
 end
@@ -119,57 +119,46 @@ local index = position or self.Position
 	return string.sub(self.Code, index, index)
 end
 
-function Lexer._step(self, amount)	
-	
-local stepAmount = amount or 1
+function Lexer._eof(self)	
+return self.Position > #self.Code
+end
 
-	
-	if self:_peek(self.Position + stepAmount) == "" then
-		return false
+function Lexer._advance(self)	
+self.Position += 1
+	self.Column += 1
+
+	local currentCharacter = self:_peek()
+
+	if currentCharacter == "\n" then
+		self.Line += 1
+		self.Column = 0
 	end
 
-	self.Position += stepAmount
-	self.Column += stepAmount
-
-	if self:_peek() == "\n" then
-		if stepAmount > 0 then
-			self.Line += 1
-			self.Column = 0
-		elseif stepAmount < 0 then
-			self.Line -= 1
-		end
-	end
-
-	
-	return true
+	return currentCharacter
 end
 
 function Lexer._makeString(self)	
-local result_string = "" .. self:_peek()
+local resultString = self:_advance()
 
-	while self:_step() do
+	while not self:_eof() do
 		local currentCharacter = self:_peek()
 
 		if IsAlpha(currentCharacter) then
-			result_string = result_string .. currentCharacter
+			resultString = resultString .. currentCharacter
+			self:_advance()
 		else
-			self:_step(-1)
 			break
 		end
 	end
 
-	return result_string
+	return resultString
 end
 
 function Lexer._makeNumber(self)	
-local dotAmount = 0
-	local result_number = "" .. self:_peek()
+local resultNumber = ""
+	local dotAmount = 0
 
-	if result_number == "." then
-		dotAmount += 1
-	end
-
-	while self:_step() do
+	while not self:_eof() do
 		local currentCharacter = self:_peek()
 
 		if currentCharacter == "." then
@@ -178,34 +167,39 @@ local dotAmount = 0
 			end
 
 			dotAmount += 1
-			result_number = result_number .. currentCharacter
+
+			resultNumber ..= currentCharacter
+			self:_advance()
 		elseif IsDigit(currentCharacter) then
-			result_number = result_number .. currentCharacter
+			resultNumber ..= currentCharacter
+			self:_advance()
 		else
-			self:_step(-1)
 			break
 		end
 	end
 
-	return (tonumber(result_number) )
+	return (tonumber(resultNumber) )
 end
 
 function Lexer.Tokenize(self)	
-while self:_step() do
+while not self:_eof() do
 		local currentCharacter = self:_peek()
 
 		if IsBlank(currentCharacter) then
-			continue
+			self:_advance()
 		elseif IsAlpha(currentCharacter) then
 			table.insert(self.Tokens, Token.new(Token.Enum.STRING, self:_makeString()))
 		elseif IsDigit(currentCharacter) or currentCharacter == "." then
 			table.insert(self.Tokens, Token.new(Token.Enum.NUMBER, self:_makeNumber()))
-		elseif IsBinary(currentCharacter) then
+		elseif IsBinaryOperator(currentCharacter) then
 			table.insert(self.Tokens, Token.new(Token.Enum.BINARY_OPERATION, currentCharacter))
+			self:_advance()
 		elseif currentCharacter == "(" then
 			table.insert(self.Tokens, Token.new(Token.Enum.LEFT_PAREN))
+			self:_advance()
 		elseif currentCharacter == ")" then
 			table.insert(self.Tokens, Token.new(Token.Enum.RIGHT_PAREN))
+			self:_advance()
 		else
 			error(`Illegal character: {currentCharacter}`)
 		end
