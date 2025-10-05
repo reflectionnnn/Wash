@@ -7,4 +7,5 @@ return {
 	DIVIDE = "divide",
 	LEFT_PAREN = "left_paren",
 	RIGHT_PAREN = "right_paren",
+	EOF = "eof",
 }

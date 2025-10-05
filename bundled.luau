@@ -16,7 +16,6 @@ local __DARKLUA_BUNDLE_MODULES __DARKLUA_BUNDLE_MODULES={cache={}, load=function
 
 
 
-
 return {
 	STRING = "string",
 	NUMBER = "number",
@@ -26,6 +25,7 @@ return {
 	DIVIDE = "divide",
 	LEFT_PAREN = "left_paren",
 	RIGHT_PAREN = "right_paren",
+	EOF = "eof",
 }
 end function __DARKLUA_BUNDLE_MODULES.b()
 
@@ -103,37 +103,39 @@ Lexer.__index = Lexer
 
 
 
-
 function Lexer.new(code)	
 local self = (setmetatable({}, Lexer) )
 	
-self.Code = code
-
-	self.Line = 1
-	self.Column = 1
-	self.Position = 1
+self._code = code
+	self._line = 1
+	self._column = 1
+	self._position = 1
 
 	return self
 end
 
+function Lexer._error(self, text)
+	error(`Lexer error (Line {self._line}, Column {self._column}): {text}`)
+end
+
 function Lexer._eof(self)	
-return self.Position > #self.Code
+return self._position > #self._code
 end
 
 function Lexer._peek(self, position)	
-local index = position or self.Position
-	return string.sub(self.Code, index, index)
+local index = position or self._position
+	return string.sub(self._code, index, index)
 end
 
 function Lexer._advance(self)	
-self.Position += 1
-	self.Column += 1
+self._position += 1
+	self._column += 1
 
 	local currentCharacter = self:_peek()
 
 	if currentCharacter == "\n" then
-		self.Line += 1
-		self.Column = 0
+		self._line += 1
+		self._column = 0
 	end
 
 	return currentCharacter
@@ -150,8 +152,8 @@ local resultNumber = ""
 			resultNumber ..= currentCharacter
 			self:_advance()
 		elseif currentCharacter == "." then
-			if dotAmount > 1 then
-				error("Expected number, got another dot")
+			if dotAmount > 0 then
+				self:_error("Expected number, got another dot")
 			end
 
 			dotAmount += 1
@@ -168,9 +170,9 @@ end
 
 function Lexer.Tokenize(self)	
 	
-self.Line = 1
-	self.Column = 1
-	self.Position = 1
+self._line = 1
+	self._column = 1
+	self._position = 1
 
 	local tokens = {}
 
@@ -185,10 +187,11 @@ self.Line = 1
 		elseif IsDigit(currentCharacter) or currentCharacter == "." then
 			table.insert(tokens, Token.new(Token.Enum.NUMBER, self:_makeNumber()))
 		else
-			error(`Illegal character: {currentCharacter}`)
+			self:_error(`Illegal character: {currentCharacter}`)
 		end
 	end
 
+	table.insert(tokens, Token.new(Token.Enum.EOF))
 	return tokens
 end
 
@@ -198,10 +201,14 @@ end end
 
 local Lexer = __DARKLUA_BUNDLE_MODULES.load('c')
 
-local code = [[ -532.5 *2 (67 / .5) ]]
+local code = "-532.5 *2 (67 / 0.5)"
 
 local lexer = Lexer.new(code)
-local tokens = lexer:Tokenize()
+local success, tokens = pcall(lexer.Tokenize, lexer)
+
+if not success then
+	return print(tokens)
+end
 
 for _, token in tokens do
 	print(tostring(token))
