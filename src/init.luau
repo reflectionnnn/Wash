@@ -2,7 +2,7 @@
 
 local Lexer = require("./src/Lexer")
 
-local code = [[532 - 53.5 / 2 * (3 - .5 + 67) ]]
+local code = [[ -532.5 *2 (67 / .5) ]]
 
 local lexer = Lexer.new(code)
 local tokens = lexer:Tokenize()
