@@ -1,3 +1,5 @@
+--!strict
+
 return {
 	STRING = "string",
 	NUMBER = "number",

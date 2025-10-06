@@ -1,3 +1,5 @@
+--!strict
+
 local Lexer = require("./Lexer")
 local Nodes = require("./Parser/Nodes")
 

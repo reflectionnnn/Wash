@@ -45,5 +45,5 @@ end
 
 -- -- Print tokens for debug purposes
 -- for _, token in result :: TokenList do
--- 	print(tostring(token))
+-- 	print(token:__repr())
 -- end
