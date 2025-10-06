@@ -2,6 +2,9 @@
 
 local Token = require("./Lexer/Token")
 
+export type Token = Token.Token
+export type TokenList = { Token }
+
 local function IsBlank(str: string): boolean
 	return str:match("%s") ~= nil
 end
@@ -98,12 +101,7 @@ function Lexer._makeNumber(self: Lexer): number
 	return tonumber(resultNumber) :: number
 end
 
-function Lexer.Tokenize(self: Lexer): { Token.Token }
-	-- Reset position
-	self._line = 1
-	self._column = 1
-	self._position = 1
-
+function Lexer.Tokenize(self: Lexer): TokenList
 	local tokens = {}
 
 	while not self:_eof() do
